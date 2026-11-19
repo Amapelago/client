@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+#
+# Format the staged C/C++ sources with clang-format, then re-stage them.
+# Enable with: git config core.hooksPath .githooks
+# Bypass once with: git commit --no-verify
+#
+set -eu
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR -z -- '*.cpp' '*.hpp' '*.h' | tr '\0' '\n')
+
+[ -n "$staged" ] || exit 0
+
+printf '%s\n' "$staged" | xargs -d '\n' clang-format -i --
+
+printf '%s\n' "$staged" | while IFS= read -r f; do
+    git add -- "$f"
+done
+
+echo "pre-commit: clang-format applied to staged C/C++ sources."
