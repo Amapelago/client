@@ -82,7 +82,7 @@ elseif(NOT _ws_tls_text MATCHES "if \\(ec\\) \\{\n *m_ec = ec;\n *\\} else \\{")
     message(FATAL_ERROR "websocketpp tls.hpp matches neither the original nor the patched handle_init text")
 endif()
 
-file(GLOB core_sources CONFIGURE_DEPENDS src/support/*.cpp src/game/*.cpp)
+file(GLOB core_sources CONFIGURE_DEPENDS src/support/*.cpp src/game/*.cpp src/ap/*.cpp)
 add_library(apclient_core STATIC ${core_sources} src/client.cpp src/boot/fingerprint.cpp)
 target_include_directories(apclient_core PUBLIC src)
 target_include_directories(apclient_core SYSTEM PUBLIC "${apclientpp_SOURCE_DIR}" "${wswrap_SOURCE_DIR}/include" "${websocketpp_SOURCE_DIR}")

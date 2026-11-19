@@ -49,6 +49,9 @@ BraceWrapping:
 SortIncludes: true
 IncludeBlocks: Regroup
 IncludeCategories:
+  # ap/net.hpp configures the net stack for every header after it, so it sorts first, ahead of a file's main header.
+  - Regex: '^"ap/net.hpp"'
+    Priority: -1
   - Regex: "^<windows.h>"
     Priority: 1
   - Regex: "^<MinHook.h>"
