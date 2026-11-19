@@ -6,10 +6,19 @@
             "hidden": true,
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/${presetName}",
-            "toolchainFile": "${sourceDir}/cmake/clang-cl-xwin-x64.cmake",
+            "toolchainFile": "${sourceDir}/external/vcpkg/scripts/buildsystems/vcpkg.cmake",
             "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
             "environment": { "XWIN_SDK": "/opt/xwin-sdk" },
-            "cacheVariables": { "CMAKE_EXPORT_COMPILE_COMMANDS": "ON" }
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/clang-cl-xwin-x64.cmake",
+                "VCPKG_TARGET_TRIPLET": "x64-windows-static-md-xwin",
+                "VCPKG_HOST_TRIPLET": "x64-linux",
+                "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake/triplets",
+                "VCPKG_OVERLAY_PORTS": "${sourceDir}/cmake/ports",
+                "VCPKG_BOOTSTRAP_OPTIONS": "-disableMetrics",
+                "VCPKG_APPLOCAL_DEPS": "OFF"
+            }
         },
         { "name": "local-debug", "inherits": "local", "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" } },
         { "name": "local-release", "inherits": "local", "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" } }

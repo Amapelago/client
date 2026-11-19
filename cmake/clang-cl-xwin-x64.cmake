@@ -4,8 +4,9 @@
 set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_PROCESSOR AMD64)
 
-# CMake cannot run a Windows exe during its compiler checks, so the probe only compiles and links.
-set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+# try_compile probes link a real executable, so library checks such as FindThreads' pthread lookup give true answers. They build in
+# Release because projects on the old MSVC runtime policy put /MDd in their Debug flags, and the sysroot has no debug CRT import libraries.
+set(CMAKE_TRY_COMPILE_CONFIGURATION Release)
 
 if(NOT DEFINED XWIN_SDK)
     if(DEFINED ENV{XWIN_SDK})

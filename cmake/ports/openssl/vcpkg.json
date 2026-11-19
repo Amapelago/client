@@ -1,0 +1,17 @@
+{
+  "name": "openssl",
+  "version": "3.6.2",
+  "description": "OpenSSL for MSVC x64 targets, built on a Linux host with clang-cl and an xwin sysroot.",
+  "homepage": "https://www.openssl.org",
+  "license": "Apache-2.0",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-get-vars",
+      "host": true
+    }
+  ]
+}
