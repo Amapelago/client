@@ -366,3 +366,26 @@ TEST_CASE_METHOD(SessionTest, "the uuid stays the same across launches")
     REQUIRE_FALSE(first.empty());
     CHECK(connects[1]["uuid"] == first);
 }
+
+TEST_CASE_METHOD(SessionTest, "a connection the server accepts remembers its server and slot and keeps the uuid")
+{
+    reply_connect();
+    reply_scout();
+    connect();
+    tick_until([&] { return session->status().link == ap::LinkState::Connected; });
+    session.reset();
+    session.emplace(dir.path);
+    CHECK(session->saved_login().server == "127.0.0.1:" + std::to_string(server.port()));
+    CHECK(session->saved_login().slot == "Player1");
+    connect();
+    tick_until([&] { return server.received("Connect").size() == 2; });
+    const std::vector<json> connects = server.received("Connect");
+    CHECK(connects[1]["uuid"] == connects[0]["uuid"]);
+}
+
+TEST_CASE_METHOD(SessionTest, "a data folder without a config.json has no saved login")
+{
+    const ap::Login login = session->saved_login();
+    CHECK(login.server.empty());
+    CHECK(login.slot.empty());
+}

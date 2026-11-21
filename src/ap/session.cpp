@@ -25,23 +25,42 @@ bool plain_folder_name(const std::string &name)
            std::ranges::all_of(name, [](char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_'; });
 }
 
-// The uuid in config.json, made and written there when the file or its key is missing or unreadable.
+// config.json as an object: empty when the file is missing, unreadable or not an object.
+nlohmann::json read_config(const std::filesystem::path &data_dir)
+{
+    nlohmann::json config = nlohmann::json::parse(std::ifstream(data_dir / "config.json"), nullptr, false);
+    return config.is_object() ? config : nlohmann::json::object();
+}
+
+// The string under key, or an empty one when the key is missing or holds something else.
+std::string string_at(const nlohmann::json &config, const char *key)
+{
+    const auto it = config.find(key);
+    return it != config.end() && it->is_string() ? it->get<std::string>() : std::string();
+}
+
+// Reads config.json, lets edit change it, and writes it back, so every writer keeps the other keys.
+template <class Edit> void edit_config(const std::filesystem::path &data_dir, Edit edit)
+{
+    nlohmann::json config = read_config(data_dir);
+    edit(config);
+    std::ofstream out(data_dir / "config.json");
+    out << config.dump();
+    out.close();
+    if (!out)
+        support::log(support::Level::Warn, "can't write config.json, so the next launch loses what it holds");
+}
+
+// The uuid in config.json, made there when it is missing or not a string.
 std::string load_uuid(const std::filesystem::path &data_dir)
 {
-    const std::filesystem::path path = data_dir / "config.json";
-    const nlohmann::json config = nlohmann::json::parse(std::ifstream(path), nullptr, false);
-    if (const auto uuid = config.find("uuid"); uuid != config.end() && uuid->is_string())
-        return uuid->get<std::string>();
-
+    if (std::string uuid = string_at(read_config(data_dir), "uuid"); !uuid.empty())
+        return uuid;
     std::random_device entropy;
     std::string uuid;
     for (int i = 0; i < 32; ++i)
         uuid += "0123456789abcdef"[entropy() % 16];
-    std::ofstream out(path);
-    out << nlohmann::json{{"uuid", uuid}}.dump();
-    out.close();
-    if (!out)
-        support::log(support::Level::Warn, "can't write config.json, so the next launch sends a new uuid");
+    edit_config(data_dir, [&](nlohmann::json &config) { config["uuid"] = uuid; });
     return uuid;
 }
 
@@ -91,6 +110,7 @@ Session::~Session()
 void Session::connect(const std::string &server, const std::string &slot, const std::string &password)
 {
     disconnect();
+    attempt_ = {server, slot};
     link_.connect(server, slot, password, load_uuid(data_dir_));
 }
 
@@ -142,6 +162,17 @@ const std::vector<NetworkItem> &Session::received() const
     return received_;
 }
 
+Login Session::saved_login() const
+{
+    const nlohmann::json config = read_config(data_dir_);
+    return {string_at(config, "server"), string_at(config, "slot")};
+}
+
+std::vector<std::string> Session::take_prints()
+{
+    return std::exchange(prints_, {});
+}
+
 const Status &Session::status() const
 {
     return status_;
@@ -160,6 +191,12 @@ void Session::on(Connected &connected)
         return;
     }
     set_link(LinkState::Connected);
+    edit_config(data_dir_,
+                [this](nlohmann::json &config)
+                {
+                    config["server"] = attempt_.server;
+                    config["slot"] = attempt_.slot;
+                });
     for (const std::string &key : connected.unknown_keys)
         support::log(support::Level::Warn, "slot_data key %s is unknown to this client", key.c_str());
     status_.unknown_keys = std::move(connected.unknown_keys);
@@ -179,6 +216,11 @@ void Session::on(Connected &connected)
 void Session::on(Refused &refused)
 {
     refuse(std::move(refused.reason));
+}
+
+void Session::on(Print &print)
+{
+    prints_.push_back(std::move(print.text));
 }
 
 void Session::on(Disconnected &)

@@ -47,7 +47,12 @@ struct ScoutReply
 {
     std::vector<NetworkItem> items;
 };
-using Event = std::variant<Connecting, Connected, Refused, Disconnected, ReceivedItems, ScoutReply>;
+// A print message about an item this slot sent, received or found, rendered to plain text.
+struct Print
+{
+    std::string text;
+};
+using Event = std::variant<Connecting, Connected, Refused, Disconnected, ReceivedItems, ScoutReply, Print>;
 
 // Owns the net thread and the APClient on it. Every method runs on the main thread, and the command and event queues are the only state the two
 // threads share. Once connect or disconnect returns, drain never returns an event of the connection it closed. Sends reach only an authenticated

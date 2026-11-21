@@ -277,6 +277,26 @@ void Link::open(const std::string &server, const std::string &slot, const std::s
             if (!items.empty())
                 push(ReceivedItems{items.front().index, to_items(items)});
         });
+    client_->set_print_json_handler(
+        [this](const APClient::PrintJSONArgs &args)
+        {
+            if (!args.item)
+                return;
+            const int me = client_->get_player_number();
+            // The receiving slot is the one the item goes to. The item's player is the slot that owns its location, which covers this slot's own
+            // finds and hints about its world.
+            if ((!args.receiving || *args.receiving != me) && args.item->player != me)
+                return;
+            // An exception that reached apclientpp would drop the rest of the packet, which can hold items.
+            try
+            {
+                push(Print{client_->render_json(args.data, APClient::RenderFormat::TEXT)});
+            }
+            catch (const std::exception &e)
+            {
+                support::log(support::Level::Warn, "print message dropped: %s", e.what());
+            }
+        });
     client_->set_location_info_handler([this](const std::list<APClient::NetworkItem> &items) { push(ScoutReply{to_items(items)}); });
 
     deadline_ = std::chrono::steady_clock::now() + 30s;
