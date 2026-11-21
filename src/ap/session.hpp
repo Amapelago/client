@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -37,7 +38,8 @@ struct Login
 class Session
 {
   public:
-    explicit Session(std::filesystem::path data_dir);
+    // bind_save reads the seed's AP save before the seed is published. It returns why the seed can't be bound, or an empty string.
+    Session(std::filesystem::path data_dir, std::function<std::string(const Seed &)> bind_save);
     ~Session(); // unbinds
     // Closes any connection and unbinds, then connects. The caller allows this only at the title.
     void connect(const std::string &server, const std::string &slot, const std::string &password);
@@ -45,7 +47,7 @@ class Session
     void disconnect();
     // Once per frame: applies the link's events.
     void tick();
-    // Main thread, with a seed bound: a location of that seed was found. Appends it to found.txt, then sends it.
+    // Main thread, with a seed bound: a location of that seed was found. Adds it to the found list, which goes out whole after every Connected, then sends it.
     void found(std::int64_t location);
     // The goal holds: sends it now and after every later Connected until the next connect or disconnect.
     void goal();
@@ -66,15 +68,16 @@ class Session
     void on(Print &print);
     void set_link(LinkState link);
     void refuse(std::string reason);
-    std::filesystem::path folder() const;
 
     std::filesystem::path data_dir_;
+    std::function<std::string(const Seed &)> bind_save_;
     Link link_;
     Status status_;
     std::vector<NetworkItem> received_;
     std::vector<std::string> prints_;
-    Login attempt_;         // what connect was given, saved once the server accepts it
-    std::string seed_name_; // the seed and slot of the last Connected, which a scout reply binds
+    std::vector<std::int64_t> found_; // the locations found in this connection's seed, cleared by unbinding
+    Login attempt_;                   // what connect was given, saved once the server accepts it
+    std::string seed_name_;           // the seed and slot of the last Connected, which a scout reply binds
     int slot_ = 0;
     bool goal_ = false; // set by goal(), cleared by unbinding
 };

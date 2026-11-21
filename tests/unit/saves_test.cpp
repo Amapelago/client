@@ -190,7 +190,7 @@ TEST_CASE("captured game saves race autosaves without a torn record, a failed wr
 {
     Dir dir;
     game::saves_start(addresses(), dir.path);
-    const ap::Seed seed{"race", 1, {}, {}};
+    const ap::Seed seed{"race", 1, {}};
     REQUIRE(game::saves_bind(seed).empty());
     ap::publish(&seed);
     // seed lives on this stack, so it is unpublished even when a REQUIRE ends the test early.

@@ -1,7 +1,10 @@
 #include "client.hpp"
 
+#include <filesystem>
+
 #include "ap/session.hpp"
 #include "game/play_state.hpp"
+#include "game/saves.hpp"
 #include "support/log.hpp"
 #include "support/paths.hpp"
 
@@ -21,14 +24,17 @@ ap::Session *g_session = nullptr;
 void cold_start(const game::Addresses &game)
 {
     g_game = game;
-    if (!support::data_dir().empty())
-        g_session = new ap::Session(support::data_dir());
+    const std::filesystem::path dir = support::data_dir();
+    game::saves_start(g_game, dir.empty() ? dir : dir / "saves");
+    if (!dir.empty())
+        g_session = new ap::Session(dir, &game::saves_bind);
 }
 
 void frame()
 {
     if (g_session)
         g_session->tick();
+    game::saves_frame();
     if (!g_title_logged && game::title_shown(g_game))
     {
         g_title_logged = true;

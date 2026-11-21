@@ -1,10 +1,9 @@
 #include "ap/session.hpp"
 
 #include <algorithm>
-#include <charconv>
 #include <fstream>
+#include <memory>
 #include <random>
-#include <system_error>
 #include <utility>
 #include <variant>
 
@@ -16,14 +15,6 @@ namespace ap
 {
 namespace
 {
-
-// The seed name comes from the server and names the seed's folder, so it must be at most 64 ASCII letters, digits, '-' and '_', which can't point
-// outside seeds\. Archipelago's own seed names are digit strings.
-bool plain_folder_name(const std::string &name)
-{
-    return !name.empty() && name.size() <= 64 &&
-           std::ranges::all_of(name, [](char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_'; });
-}
 
 // config.json as an object: empty when the file is missing, unreadable or not an object.
 nlohmann::json read_config(const std::filesystem::path &data_dir)
@@ -64,41 +55,10 @@ std::string load_uuid(const std::filesystem::path &data_dir)
     return uuid;
 }
 
-// Every id in found.txt. A crash during an append can leave the last line without its newline, and a cut-off id may name another location, so
-// that line is skipped.
-std::vector<std::int64_t> read_found(const std::filesystem::path &folder)
-{
-    std::vector<std::int64_t> ids;
-    std::ifstream in(folder / "found.txt");
-    std::string line;
-    // getline sets eof only when the file ends before the line's newline.
-    while (std::getline(in, line) && !in.eof())
-    {
-        std::int64_t id;
-        const char *end = line.data() + line.size();
-        if (const auto [stop, error] = std::from_chars(line.data(), end, id); error == std::errc{} && stop == end)
-            ids.push_back(id);
-    }
-    return ids;
-}
-
-// Whether found.txt ends in a line without its newline, as a crash during an append leaves it.
-bool ends_cut_off(const std::filesystem::path &path)
-{
-    std::ifstream in(path, std::ios::binary | std::ios::ate);
-    return in.tellg() > 0 && in.seekg(-1, std::ios::end).get() != '\n';
-}
-
-// UTF-8, because path::string() throws on Windows for a character the ANSI code page lacks.
-std::string utf8(const std::filesystem::path &path)
-{
-    const std::u8string text = path.u8string();
-    return {text.begin(), text.end()};
-}
-
 } // namespace
 
-Session::Session(std::filesystem::path data_dir) : data_dir_(std::move(data_dir))
+Session::Session(std::filesystem::path data_dir, std::function<std::string(const Seed &)> bind_save)
+    : data_dir_(std::move(data_dir)), bind_save_(std::move(bind_save))
 {
 }
 
@@ -120,6 +80,7 @@ void Session::disconnect()
     link_.disconnect();
     publish(nullptr);
     goal_ = false;
+    found_.clear();
     status_.unknown_keys.clear();
     set_link(LinkState::Disconnected);
 }
@@ -137,17 +98,7 @@ void Session::tick()
 
 void Session::found(std::int64_t location)
 {
-    const std::filesystem::path path = seed()->folder / "found.txt";
-    // An id appended to a cut-off line would read as one longer id, which can name another location, so "x\n" first ends that line as one
-    // read_found skips.
-    const bool cut_off = ends_cut_off(path);
-    std::ofstream out(path, std::ios::app);
-    if (cut_off)
-        out << "x\n";
-    out << location << '\n';
-    out.close();
-    if (!out)
-        support::log(support::Level::Error, "can't append %lld to found.txt, so it is sent now but not after a restart", location);
+    found_.push_back(location);
     link_.send_locations({location});
 }
 
@@ -185,11 +136,6 @@ void Session::on(Connecting &)
 
 void Session::on(Connected &connected)
 {
-    if (!plain_folder_name(connected.seed_name))
-    {
-        refuse("the server's seed name \"" + connected.seed_name.substr(0, 64) + "\" can't be used as a folder name");
-        return;
-    }
     set_link(LinkState::Connected);
     edit_config(data_dir_,
                 [this](nlohmann::json &config)
@@ -207,8 +153,8 @@ void Session::on(Connected &connected)
         received_.clear();
         link_.scout(std::move(connected.locations));
     }
-    // The found list goes out whole after every Connected, so a check the server missed while offline or before a restart still reaches it.
-    link_.send_locations(read_found(folder()));
+    // The found list goes out whole after every Connected, so a check the server missed while the link was down still reaches it.
+    link_.send_locations(found_);
     if (goal_)
         link_.send_goal();
 }
@@ -250,18 +196,15 @@ void Session::on(ScoutReply &reply)
 {
     if (status_.link != LinkState::Connected || seed())
         return;
-    const std::filesystem::path dir = folder();
-    std::error_code error;
-    std::filesystem::create_directories(dir, error);
-    if (error)
+    auto bound = std::make_unique<Seed>(Seed{seed_name_, slot_, std::move(reply.items)});
+    std::ranges::sort(bound->locations, {}, &NetworkItem::location);
+    if (std::string refusal = bind_save_(*bound); !refusal.empty())
     {
-        refuse("can't create " + utf8(dir) + ": " + error.message());
+        refuse(std::move(refusal));
         return;
     }
-    auto *bound = new Seed{seed_name_, slot_, dir, std::move(reply.items)};
-    std::ranges::sort(bound->locations, {}, &NetworkItem::location);
-    publish(bound);
-    support::log(support::Level::Info, "bound seed %s slot %d, %zu locations", bound->name.c_str(), bound->slot, bound->locations.size());
+    publish(bound.release());
+    support::log(support::Level::Info, "bound seed %s slot %d, %zu locations", seed()->name.c_str(), seed()->slot, seed()->locations.size());
 }
 
 void Session::set_link(LinkState link)
@@ -279,11 +222,6 @@ void Session::refuse(std::string reason)
     support::log(support::Level::Warn, "refused: %s", reason.c_str());
     status_.reason = std::move(reason);
     set_link(LinkState::Refused);
-}
-
-std::filesystem::path Session::folder() const
-{
-    return data_dir_ / "seeds" / (seed_name_ + "_" + std::to_string(slot_));
 }
 
 } // namespace ap

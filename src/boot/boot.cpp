@@ -11,6 +11,7 @@
 #include "boot/fingerprint.hpp"
 #include "client.hpp"
 #include "game/addresses.hpp"
+#include "game/saves.hpp"
 #include "support/crash.hpp"
 #include "support/log.hpp"
 #include "support/paths.hpp"
@@ -135,9 +136,11 @@ bool startup_detour(bool warm)
             support::crash_start(dir / "crashes");
         }
         log(Level::Info, "cold start on thread %lu", GetCurrentThreadId());
-        const game::Addresses game = game::resolve(g_main_base, kernel_base());
+        game::Addresses game = game::resolve(g_main_base, kernel_base());
         ui::start(game);
-        const HMODULE user32 = GetModuleHandleW(L"user32.dll"); // the client imports it, so it is mapped
+        const HMODULE user32 = GetModuleHandleW(L"user32.dll");     // the client imports it, so it is mapped
+        const HMODULE steam = GetModuleHandleW(L"steam_api64.dll"); // main.dll imports it, so it is mapped
+        game.steam_context_init = reinterpret_cast<void *(*)(void *)>(GetProcAddress(steam, "SteamInternal_ContextInit"));
         if (queue_hook("flower_tick", reinterpret_cast<void *>(game.flower_tick), reinterpret_cast<void *>(&tick_detour),
                        reinterpret_cast<void **>(&g_tick_next)) &&
             queue_hook("SwapChain::swap", reinterpret_cast<void *>(game.swapchain_swap), reinterpret_cast<void *>(&ui::swap_detour),
@@ -150,9 +153,11 @@ bool startup_detour(bool warm)
                        reinterpret_cast<void **>(&ui::show_cursor_next)) &&
             queue_hook("GetDeviceState", device_state_function(), reinterpret_cast<void *>(&ui::get_device_state_detour),
                        reinterpret_cast<void **>(&ui::get_device_state_next)) &&
+            queue_hook("SteamAPI_RegisterCallResult", reinterpret_cast<void *>(GetProcAddress(steam, "SteamAPI_RegisterCallResult")),
+                       reinterpret_cast<void *>(&game::register_call_result_detour), reinterpret_cast<void **>(&game::register_call_result_next)) &&
             apply_hooks())
         {
-            log(Level::Info, "flower_tick, SwapChain::swap, cPad::Update, ClipCursor, ShowCursor and GetDeviceState hooked");
+            log(Level::Info, "flower_tick, SwapChain::swap, cPad::Update, ClipCursor, ShowCursor, GetDeviceState and SteamAPI_RegisterCallResult hooked");
         }
         client::cold_start(game);
         // Anything flower_startup sets as the unhandled-exception filter displaces the client's, so the client's goes back afterwards.

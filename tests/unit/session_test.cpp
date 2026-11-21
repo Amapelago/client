@@ -68,7 +68,8 @@ struct SessionTest
 {
     DataDir dir;
     ScriptedApServer server;
-    std::optional<ap::Session> session{std::in_place, dir.path};
+    std::string bind_refusal;
+    std::optional<ap::Session> session{std::in_place, dir.path, [this](const ap::Seed &) { return bind_refusal; }};
 
     static json slot_data()
     {
@@ -124,8 +125,6 @@ TEST_CASE_METHOD(SessionTest, "connecting binds the seed with every location of 
     const ap::Seed *bound = ap::seed();
     CHECK(bound->name == "seed-a");
     CHECK(bound->slot == 1);
-    CHECK(bound->folder == dir.path / "seeds" / "seed-a_1");
-    CHECK(std::filesystem::is_directory(bound->folder));
     CHECK(bound->locations == std::vector<ap::NetworkItem>{{0x20, 8000000101, 1, 0}, {0x21, 8000000102, 1, 0}, {0x22, 8000000103, 1, 0}});
     const std::vector<json> scouts = server.received("LocationScouts");
     REQUIRE(scouts.size() == 1);
@@ -200,10 +199,13 @@ TEST_CASE_METHOD(SessionTest, "the received list follows the server across overl
     CHECK(session->received() == std::vector<ap::NetworkItem>{item(0x30)});
 }
 
-TEST_CASE_METHOD(SessionTest, "a seed connected after another starts with an empty received list")
+TEST_CASE_METHOD(SessionTest, "a seed connected after another starts with an empty received list and found list")
 {
     bind();
     REQUIRE(session->received().size() == 1);
+    session->found(8000000102);
+    tick_until([&] { return contains(checked(server), 8000000102); });
+    const std::size_t before = server.received("LocationChecks").size();
     session->disconnect();
     server.set_seed("seed-b");
     server.reply_to("Connect", {connected_reply(slot_data(), {8000000101, 8000000102}, {8000000103})});
@@ -211,6 +213,11 @@ TEST_CASE_METHOD(SessionTest, "a seed connected after another starts with an emp
     connect();
     tick_until([] { return ap::seed() != nullptr && ap::seed()->name == "seed-b"; });
     CHECK(session->received().empty());
+    // The server records a packet on its own thread, so a LocationChecks sent just before the bind may still be on its way.
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    const std::vector<json> checks = server.received("LocationChecks");
+    for (std::size_t i = before; i < checks.size(); ++i)
+        CHECK_FALSE(contains(checks[i]["locations"].get<std::vector<std::int64_t>>(), 8000000102));
 }
 
 TEST_CASE_METHOD(SessionTest, "reconnecting to a different seed while bound refuses and keeps the bound seed")
@@ -284,73 +291,15 @@ TEST_CASE_METHOD(SessionTest, "the goal reaches the server and is sent again aft
     CHECK(updates[1]["status"] == 30);
 }
 
-TEST_CASE_METHOD(SessionTest, "a found location reaches the server and is resent after a restart")
+TEST_CASE_METHOD(SessionTest, "an AP save the bind can't use refuses the seed with its reason")
 {
-    bind();
-    session->found(8000000102);
-    tick_until([&] { return contains(checked(server), 8000000102); });
-
-    session.reset();
-    session.emplace(dir.path);
-    const std::size_t before = server.received("LocationChecks").size();
-    bind();
-    tick_until([&] { return server.received("LocationChecks").size() > before; });
-    const json first = server.received("LocationChecks")[before]["locations"];
-    CHECK(contains(first.get<std::vector<std::int64_t>>(), 8000000102));
-}
-
-TEST_CASE_METHOD(SessionTest, "a cut-off last line in the found list is never sent")
-{
-    std::filesystem::create_directories(dir.path / "seeds" / "seed-a_1");
-    std::ofstream(dir.path / "seeds" / "seed-a_1" / "found.txt", std::ios::binary) << "8000000101\n1000";
-    bind();
-    tick_until([&] { return !server.received("LocationChecks").empty(); });
-    const std::vector<std::int64_t> ids = checked(server);
-    CHECK(contains(ids, 8000000101));
-    CHECK_FALSE(contains(ids, 1000));
-}
-
-TEST_CASE_METHOD(SessionTest, "an append after a cut-off line in the found list starts its own line")
-{
-    std::filesystem::create_directories(dir.path / "seeds" / "seed-a_1");
-    std::ofstream(dir.path / "seeds" / "seed-a_1" / "found.txt", std::ios::binary) << "8000000101\n800000010";
-    bind();
-    session->found(8000000103);
-    tick_until([&] { return contains(checked(server), 8000000103); });
-
-    session.reset();
-    session.emplace(dir.path);
-    const std::size_t before = server.received("LocationChecks").size();
-    bind();
-    tick_until([&] { return server.received("LocationChecks").size() > before; });
-    std::vector<std::int64_t> resent = server.received("LocationChecks")[before]["locations"].get<std::vector<std::int64_t>>();
-    std::ranges::sort(resent);
-    CHECK(resent == std::vector<std::int64_t>{8000000101, 8000000103});
-}
-
-TEST_CASE_METHOD(SessionTest, "a seed folder that can't be created refuses the bind")
-{
-    std::ofstream{dir.path / "seeds"};
+    bind_refusal = "seed-a_1.zip can't be read, and no readable .bak is beside it";
     reply_connect();
     reply_scout();
     connect();
     tick_until([&] { return refused(); });
-    CHECK_FALSE(session->status().reason.empty());
+    CHECK(session->status().reason == bind_refusal);
     CHECK(ap::seed() == nullptr);
-}
-
-TEST_CASE_METHOD(SessionTest, "a seed name that isn't a plain folder name is refused")
-{
-    server.set_seed("..\\..\\evil");
-    reply_connect();
-    reply_scout();
-    connect();
-    tick_until([&] { return refused(); });
-    CHECK(ap::seed() == nullptr);
-    CHECK(server.received("LocationScouts").empty());
-    // An escape from seeds\ would make evil_1 in the data folder's parent, or in the data folder itself.
-    CHECK_FALSE(std::filesystem::exists(dir.path.parent_path() / "evil_1"));
-    CHECK_FALSE(std::filesystem::exists(dir.path / "evil_1"));
 }
 
 TEST_CASE_METHOD(SessionTest, "the uuid stays the same across launches")
@@ -358,7 +307,7 @@ TEST_CASE_METHOD(SessionTest, "the uuid stays the same across launches")
     connect();
     tick_until([&] { return server.received("Connect").size() == 1; });
     session.reset();
-    session.emplace(dir.path);
+    session.emplace(dir.path, [this](const ap::Seed &) { return bind_refusal; });
     connect();
     tick_until([&] { return server.received("Connect").size() == 2; });
     const std::vector<json> connects = server.received("Connect");
@@ -374,7 +323,7 @@ TEST_CASE_METHOD(SessionTest, "a connection the server accepts remembers its ser
     connect();
     tick_until([&] { return session->status().link == ap::LinkState::Connected; });
     session.reset();
-    session.emplace(dir.path);
+    session.emplace(dir.path, [this](const ap::Seed &) { return bind_refusal; });
     CHECK(session->saved_login().server == "127.0.0.1:" + std::to_string(server.port()));
     CHECK(session->saved_login().slot == "Player1");
     connect();
@@ -394,7 +343,7 @@ TEST_CASE_METHOD(SessionTest, "a config.json whose keys hold the wrong types has
 {
     session.reset();
     std::ofstream(dir.path / "config.json") << R"({"uuid":5,"server":1})";
-    session.emplace(dir.path);
+    session.emplace(dir.path, [this](const ap::Seed &) { return bind_refusal; });
     const ap::Login login = session->saved_login();
     CHECK(login.server.empty());
     CHECK(login.slot.empty());

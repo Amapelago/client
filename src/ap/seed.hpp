@@ -2,7 +2,6 @@
 
 #include <atomic>
 #include <cstdint>
-#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -25,7 +24,6 @@ struct Seed
 {
     std::string name;
     int slot;
-    std::filesystem::path folder;       // <data dir>\seeds\<name>_<slot>
     std::vector<NetworkItem> locations; // every location of the slot with what it holds, sorted by location
 };
 

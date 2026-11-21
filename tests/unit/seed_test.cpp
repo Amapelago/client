@@ -12,7 +12,7 @@ namespace
 // A seed whose locations[i].location is i. Like every published seed, it is never freed.
 const ap::Seed *make_seed(int count)
 {
-    auto *s = new ap::Seed{"seed", 1, {}, {}};
+    auto *s = new ap::Seed{"seed", 1, {}};
     for (int i = 0; i < count; ++i)
         s->locations.push_back({0, i, 1, 0});
     return s;
