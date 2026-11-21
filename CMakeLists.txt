@@ -82,6 +82,24 @@ elseif(NOT _ws_tls_text MATCHES "if \\(ec\\) \\{\n *m_ec = ec;\n *\\} else \\{")
     message(FATAL_ERROR "websocketpp tls.hpp matches neither the original nor the patched handle_init text")
 endif()
 
+# ImGui draws the overlay. It is fetched and built like MinHook, from the core files and the Win32 and DX11 backends.
+FetchContent_Declare(imgui
+    URL https://github.com/ocornut/imgui/archive/refs/tags/v1.92.2b.tar.gz
+    URL_HASH SHA256=da3d453cce74e0fb3d67f8d798a2a8d04fcaf0b33ce0e0131d0695dfc4f64191
+    DOWNLOAD_DIR "${CMAKE_SOURCE_DIR}/build/_downloads"
+    SOURCE_SUBDIR no-cmake)
+FetchContent_MakeAvailable(imgui)
+
+add_library(imgui STATIC EXCLUDE_FROM_ALL
+    "${imgui_SOURCE_DIR}/imgui.cpp"
+    "${imgui_SOURCE_DIR}/imgui_draw.cpp"
+    "${imgui_SOURCE_DIR}/imgui_tables.cpp"
+    "${imgui_SOURCE_DIR}/imgui_widgets.cpp"
+    "${imgui_SOURCE_DIR}/backends/imgui_impl_dx11.cpp"
+    "${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp")
+target_include_directories(imgui SYSTEM PUBLIC "${imgui_SOURCE_DIR}" "${imgui_SOURCE_DIR}/backends")
+target_link_libraries(imgui PUBLIC dwmapi)
+
 file(GLOB core_sources CONFIGURE_DEPENDS src/support/*.cpp src/game/*.cpp src/ap/*.cpp)
 add_library(apclient_core STATIC ${core_sources} src/client.cpp src/boot/fingerprint.cpp)
 target_include_directories(apclient_core PUBLIC src)
@@ -90,9 +108,10 @@ target_link_libraries(apclient_core PUBLIC asio::asio OpenSSL::SSL OpenSSL::Cryp
 add_git_version_info(apclient_core)
 apclient_warnings(apclient_core)
 
-add_library(dinput8 SHARED src/boot/boot.cpp src/boot/proxy.cpp src/boot/dinput8.def)
+file(GLOB ui_sources CONFIGURE_DEPENDS src/ui/*.cpp)
+add_library(dinput8 SHARED src/boot/boot.cpp src/boot/proxy.cpp src/boot/dinput8.def ${ui_sources})
 set_target_properties(dinput8 PROPERTIES PREFIX "")
-target_link_libraries(dinput8 PRIVATE apclient_core minhook)
+target_link_libraries(dinput8 PRIVATE apclient_core minhook imgui)
 target_link_options(dinput8 PRIVATE /DEBUG $<$<CONFIG:Release>:/OPT:REF /OPT:ICF>)
 apclient_warnings(dinput8)
 

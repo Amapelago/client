@@ -36,4 +36,9 @@ void frame()
     }
 }
 
+ap::Session *session()
+{
+    return g_session;
+}
+
 } // namespace client

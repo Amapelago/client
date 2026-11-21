@@ -11,6 +11,7 @@
 #include "support/crash.hpp"
 #include "support/log.hpp"
 #include "support/paths.hpp"
+#include "ui/overlay.hpp"
 #include "version.hpp"
 
 #include <MinHook.h>
@@ -54,6 +55,12 @@ DWORD WINAPI show_mismatch(void *)
 {
     MessageBoxA(nullptr, g_mismatch, "okami-apclient", MB_OK | MB_ICONWARNING);
     return 0;
+}
+
+// Zero until the loader maps flower_kernel.dll. main.dll imports it, so it is mapped by the cold start.
+uintptr_t kernel_base()
+{
+    return reinterpret_cast<uintptr_t>(GetModuleHandleW(L"flower_kernel.dll"));
 }
 
 bool is_main_dll(const UNICODE_STRING *name)
@@ -105,12 +112,15 @@ bool startup_detour(bool warm)
             support::crash_start(dir / "crashes");
         }
         log(Level::Info, "cold start on thread %lu", GetCurrentThreadId());
-        const game::Addresses game = game::resolve(g_main_base);
+        const game::Addresses game = game::resolve(g_main_base, kernel_base());
+        ui::start(game);
         if (queue_hook("flower_tick", reinterpret_cast<void *>(game.flower_tick), reinterpret_cast<void *>(&tick_detour),
                        reinterpret_cast<void **>(&g_tick_next)) &&
+            queue_hook("SwapChain::swap", reinterpret_cast<void *>(game.swapchain_swap), reinterpret_cast<void *>(&ui::swap_detour),
+                       reinterpret_cast<void **>(&ui::swap_next)) &&
             apply_hooks())
         {
-            log(Level::Info, "flower_tick hooked");
+            log(Level::Info, "flower_tick and SwapChain::swap hooked");
         }
         client::cold_start(game);
         // Anything flower_startup sets as the unhandled-exception filter displaces the client's, so the client's goes back afterwards.
@@ -147,8 +157,8 @@ void on_main_dll(HMODULE main)
         log(Level::Error, "initialising MinHook failed: %s", MH_StatusToString(status));
         return;
     }
-    if (queue_hook("flower_startup", reinterpret_cast<void *>(game::resolve(g_main_base).flower_startup), reinterpret_cast<void *>(&startup_detour),
-                   reinterpret_cast<void **>(&g_startup_next)) &&
+    if (queue_hook("flower_startup", reinterpret_cast<void *>(game::resolve(g_main_base, kernel_base()).flower_startup),
+                   reinterpret_cast<void *>(&startup_detour), reinterpret_cast<void **>(&g_startup_next)) &&
         apply_hooks())
     {
         log(Level::Info, "flower_startup hooked");
