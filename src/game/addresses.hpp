@@ -22,6 +22,17 @@ struct Addresses
     void (*pad_update)(void *pad) = nullptr;
     volatile uint8_t *key_work = nullptr; // KEY_WORK, 0xc8 bytes
     volatile uint8_t *joy_work = nullptr; // sJoyWork, 0x1d0 bytes
+    bool (*save_prompt_can_open)() = nullptr;
+    const volatile uint32_t *ui_mode_flags = nullptr;  // u32 words; +0x04, +0x0c, +0x10 and +0x18 are the ones play_state reads
+    const volatile uint32_t *map_task_state = nullptr; // the low byte is the state
+    const volatile uint32_t *engine_flags = nullptr;
+    void *const volatile *player = nullptr; // holds the player object's address, or null
+    volatile int32_t *save_area_code = nullptr;
+    volatile uint8_t *save_use_pos = nullptr;
+    uint8_t *cached_save_record = nullptr; // one OKAMI slot record
+    void (*serialize_save_record)(void *ctx) = nullptr;
+    void *steam_context_init_data = nullptr;
+    void *(*steam_context_init)(void *init_data) = nullptr; // steam_api64's SteamInternal_ContextInit; boot fills it, since resolve sees only main.dll
 };
 
 // The addresses for main.dll mapped at main_base and flower_kernel.dll mapped at kernel_base.

@@ -46,6 +46,27 @@ Addresses resolve(uintptr_t main_base, uintptr_t kernel_base)
     a.key_work = at<volatile uint8_t *>(main_base, 0x180b6b0a0);
     // g_joyWork is the sJoyWork that cPad::Update fills from every device before it builds g_keyWork. Menus read its press edges directly.
     a.joy_work = at<volatile uint8_t *>(main_base, 0x180b6ad00);
+    // SavePrompt_CanOpen is the game's own test for whether a save prompt may open (inferred). It dereferences g_Player.
+    a.save_prompt_can_open = at<bool (*)()>(main_base, 0x180438b20);
+    // g_uiModeFlags is a run of u32 words whose bits say which menus, scripts and player modes are active (inferred). The words at +0x04, +0x0c, +0x10 and
+    // +0x18 are 0x180b6b2a4, 0x180b6b2ac, 0x180b6b2b0 and 0x180b6b2b8.
+    a.ui_mode_flags = at<const volatile uint32_t *>(main_base, 0x180b6b2a0);
+    // g_mapTaskState's low byte is the map task's state, 4 once a room has loaded (confirmed). NOW LOADING can outlast it.
+    a.map_task_state = at<const volatile uint32_t *>(main_base, 0x180b661d0);
+    // Bit 15 of g_engineFlagBits is set while a soft reset or Game Over is armed (confirmed).
+    a.engine_flags = at<const volatile uint32_t *>(main_base, 0x180b6acc4);
+    // g_Player points to the player object, and is null while Room_Change replaces the room (inferred).
+    a.player = at<void *const volatile *>(main_base, 0x180b6b2d0);
+    // g_saveAreaCode is the area code SaveRecord_Serialize stamps into record +0x04. It is -1 outside a save prompt (confirmed).
+    a.save_area_code = at<volatile int32_t *>(main_base, 0x18079beb4);
+    // The save context's usePos byte is 1 when a save prompt supplies a position to save in place of the player's (confirmed).
+    a.save_use_pos = at<volatile uint8_t *>(main_base, 0x18079bed4);
+    // g_cachedSaveRecord holds the record the game last loaded or saved (confirmed).
+    a.cached_save_record = at<uint8_t *>(main_base, 0x1809a9f10);
+    // SaveRecord_Serialize writes the live game into the record that ctx +0x220 points to, and reads nothing else from ctx (confirmed).
+    a.serialize_save_record = at<void (*)(void *)>(main_base, 0x1801c3870);
+    // main.dll's Steam context data. SteamInternal_ContextInit on it returns the context, which holds the ISteamRemoteStorage pointer at +0x48 (confirmed).
+    a.steam_context_init_data = at<void *>(main_base, 0x180792cb0);
     return a;
 }
 
