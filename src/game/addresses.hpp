@@ -19,6 +19,9 @@ struct Addresses
     void *const *display_buffer = nullptr; // the game's slot for the Texture2D that wraps the swap chain's back buffer; read it every frame
     ID3D11RenderTargetView *(*texture_rtv)(const void *texture) = nullptr;
     HWND__ *(*get_hwnd)() = nullptr;
+    void (*pad_update)(void *pad) = nullptr;
+    volatile uint8_t *key_work = nullptr; // KEY_WORK, 0xc8 bytes
+    volatile uint8_t *joy_work = nullptr; // sJoyWork, 0x1d0 bytes
 };
 
 // The addresses for main.dll mapped at main_base and flower_kernel.dll mapped at kernel_base.

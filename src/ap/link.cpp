@@ -30,7 +30,8 @@ std::string plan_connection(std::string_view server)
     return std::string(server);
 }
 
-// Keeps no data package. The client shows no item or location names, and apclientpp's own store would write a cache to disk.
+// Keeps the data package only in memory. apclientpp downloads it on every connection to name the items and slots in print messages, and its default store
+// would write a cache to disk.
 struct NoDataPackageStore final : APDataPackageStore
 {
     bool load(const std::string &, const std::string &, json &) override

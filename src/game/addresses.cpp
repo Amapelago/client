@@ -40,6 +40,12 @@ Addresses resolve(uintptr_t main_base, uintptr_t kernel_base)
     a.texture_rtv = at<ID3D11RenderTargetView *(*)(const void *)>(kernel_base, 0x18001dfb0);
     // m2::render::GetHwnd returns the game window, or null before okami.exe creates it.
     a.get_hwnd = at<HWND__ *(*)()>(kernel_base, 0x18003b460);
+    // cPad::Update builds g_keyWork from every input device, once per frame on the main thread.
+    a.pad_update = at<void (*)(void *)>(main_base, 0x180186650);
+    // g_keyWork is the KEY_WORK that gameplay reads.
+    a.key_work = at<volatile uint8_t *>(main_base, 0x180b6b0a0);
+    // g_joyWork is the sJoyWork that cPad::Update fills from every device before it builds g_keyWork. Menus read its press edges directly.
+    a.joy_work = at<volatile uint8_t *>(main_base, 0x180b6ad00);
     return a;
 }
 

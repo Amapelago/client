@@ -111,7 +111,7 @@ apclient_warnings(apclient_core)
 file(GLOB ui_sources CONFIGURE_DEPENDS src/ui/*.cpp)
 add_library(dinput8 SHARED src/boot/boot.cpp src/boot/proxy.cpp src/boot/dinput8.def ${ui_sources})
 set_target_properties(dinput8 PROPERTIES PREFIX "")
-target_link_libraries(dinput8 PRIVATE apclient_core minhook imgui)
+target_link_libraries(dinput8 PRIVATE apclient_core minhook imgui dxguid)
 target_link_options(dinput8 PRIVATE /DEBUG $<$<CONFIG:Release>:/OPT:REF /OPT:ICF>)
 apclient_warnings(dinput8)
 

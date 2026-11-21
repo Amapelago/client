@@ -12,4 +12,7 @@ namespace boot
 // overlay can load dinput8.dll first), checks that it is the supported build and hooks flower_startup, whose cold call boots the client.
 void attach(HMODULE self);
 
+// The DirectInput8Create export: forwards to the system dinput8's, or fails with E_FAIL when the system copy can't be loaded.
+extern "C" HRESULT WINAPI proxy_DirectInput8Create(HINSTANCE instance, DWORD version, REFIID iid, void **out, void *outer);
+
 } // namespace boot

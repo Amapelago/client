@@ -389,3 +389,18 @@ TEST_CASE_METHOD(SessionTest, "a data folder without a config.json has no saved 
     CHECK(login.server.empty());
     CHECK(login.slot.empty());
 }
+
+TEST_CASE_METHOD(SessionTest, "a config.json whose keys hold the wrong types has no saved login and gets a fresh uuid")
+{
+    session.reset();
+    std::ofstream(dir.path / "config.json") << R"({"uuid":5,"server":1})";
+    session.emplace(dir.path);
+    const ap::Login login = session->saved_login();
+    CHECK(login.server.empty());
+    CHECK(login.slot.empty());
+    connect();
+    tick_until([&] { return server.received("Connect").size() == 1; });
+    const json uuid = server.received("Connect")[0]["uuid"];
+    REQUIRE(uuid.is_string());
+    CHECK_FALSE(uuid.get<std::string>().empty());
+}

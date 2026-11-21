@@ -5,6 +5,9 @@
 
 #include <winternl.h>
 
+#define DIRECTINPUT_VERSION 0x0800
+#include <dinput.h>
+
 #include "boot/fingerprint.hpp"
 #include "client.hpp"
 #include "game/addresses.hpp"
@@ -25,8 +28,8 @@ using support::Level;
 using support::log;
 
 // Threading: g_main_base and g_startup_next are written under the loader lock, on whichever thread maps main.dll. g_tick_next is written by startup_detour at
-// the cold start. The detours and everything they read run only on the game's main thread. The game's address table belongs to client, which receives it at
-// the cold start; boot keeps the main.dll base to resolve it and the trampolines to the original functions.
+// the cold start. The detours and everything they read run only on the game's main thread. The game's address table is resolved at the cold start, and
+// client and ui each keep a copy; boot keeps the main.dll base to resolve it and the trampolines of its own two detours.
 uintptr_t g_main_base = 0;
 bool (*g_startup_next)(bool warm) = nullptr;
 bool (*g_tick_next)() = nullptr;
@@ -94,6 +97,26 @@ bool apply_hooks()
     return status == MH_OK;
 }
 
+// The game's DirectInput keyboard and mouse share one IDirectInputDevice8W vtable, whose slot 9 is GetDeviceState. A keyboard device made and released
+// here gives its address, or null when DirectInput can't make one.
+void *device_state_function()
+{
+    IDirectInput8W *input = nullptr;
+    if (FAILED(proxy_DirectInput8Create(GetModuleHandleW(nullptr), DIRECTINPUT_VERSION, IID_IDirectInput8W, reinterpret_cast<void **>(&input), nullptr)))
+    {
+        return nullptr;
+    }
+    void *function = nullptr;
+    IDirectInputDevice8W *keyboard = nullptr;
+    if (SUCCEEDED(input->CreateDevice(GUID_SysKeyboard, &keyboard, nullptr)))
+    {
+        function = (*reinterpret_cast<void ***>(keyboard))[9];
+        keyboard->Release();
+    }
+    input->Release();
+    return function;
+}
+
 bool tick_detour()
 {
     client::frame();
@@ -114,13 +137,22 @@ bool startup_detour(bool warm)
         log(Level::Info, "cold start on thread %lu", GetCurrentThreadId());
         const game::Addresses game = game::resolve(g_main_base, kernel_base());
         ui::start(game);
+        const HMODULE user32 = GetModuleHandleW(L"user32.dll"); // the client imports it, so it is mapped
         if (queue_hook("flower_tick", reinterpret_cast<void *>(game.flower_tick), reinterpret_cast<void *>(&tick_detour),
                        reinterpret_cast<void **>(&g_tick_next)) &&
             queue_hook("SwapChain::swap", reinterpret_cast<void *>(game.swapchain_swap), reinterpret_cast<void *>(&ui::swap_detour),
                        reinterpret_cast<void **>(&ui::swap_next)) &&
+            queue_hook("cPad::Update", reinterpret_cast<void *>(game.pad_update), reinterpret_cast<void *>(&ui::pad_detour),
+                       reinterpret_cast<void **>(&ui::pad_next)) &&
+            queue_hook("ClipCursor", reinterpret_cast<void *>(GetProcAddress(user32, "ClipCursor")), reinterpret_cast<void *>(&ui::clip_cursor_detour),
+                       reinterpret_cast<void **>(&ui::clip_cursor_next)) &&
+            queue_hook("ShowCursor", reinterpret_cast<void *>(GetProcAddress(user32, "ShowCursor")), reinterpret_cast<void *>(&ui::show_cursor_detour),
+                       reinterpret_cast<void **>(&ui::show_cursor_next)) &&
+            queue_hook("GetDeviceState", device_state_function(), reinterpret_cast<void *>(&ui::get_device_state_detour),
+                       reinterpret_cast<void **>(&ui::get_device_state_next)) &&
             apply_hooks())
         {
-            log(Level::Info, "flower_tick and SwapChain::swap hooked");
+            log(Level::Info, "flower_tick, SwapChain::swap, cPad::Update, ClipCursor, ShowCursor and GetDeviceState hooked");
         }
         client::cold_start(game);
         // Anything flower_startup sets as the unhandled-exception filter displaces the client's, so the client's goes back afterwards.
