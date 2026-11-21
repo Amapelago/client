@@ -31,6 +31,8 @@ Addresses resolve(uintptr_t main_base, uintptr_t kernel_base)
     a.current_room = at<const volatile uint16_t *>(main_base, 0x180b6b240);
     // cTitle + 0x14 holds the title's state; the low byte is the major state.
     a.title_state = at<const volatile uint32_t *>(main_base, 0x180b74414);
+    // cTitle + 0x68 holds the begin and end pointers of the menu's entry vector (inferred).
+    a.title_menu = at<TitleMenuEntry *const volatile *>(main_base, 0x180b74468);
     // SwapChain::swap presents the finished frame through IDXGISwapChain::Present, on the main thread inside flower_tick.
     a.swapchain_swap = at<void (*)(void *, unsigned)>(kernel_base, 0x18003e6a0);
     // SwapChain's methods work on a flower_kernel global. At +0x18 it points to the Texture2D that wraps the IDXGISwapChain's back buffer, the surface

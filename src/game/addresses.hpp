@@ -8,13 +8,22 @@ struct HWND__;
 namespace game
 {
 
+// One row of the title menu's entry vector.
+struct TitleMenuEntry
+{
+    int32_t action; // 0 New Game, 1 Continue, 2 to 4 the other rows; the confirm dispatch acts only on 0 to 4
+    int32_t cursor;
+    int32_t row;
+};
+
 // Where the game's functions and globals sit in this process. All of them come from the one supported build of main.dll and flower_kernel.dll.
 struct Addresses
 {
     bool (*flower_startup)(bool warm) = nullptr;
     bool (*flower_tick)() = nullptr;
-    const volatile uint16_t *current_room = nullptr; // stage << 8 | room
-    const volatile uint32_t *title_state = nullptr;  // the low byte is the title's major state
+    const volatile uint16_t *current_room = nullptr;      // stage << 8 | room
+    const volatile uint32_t *title_state = nullptr;       // the low byte is the title's major state
+    TitleMenuEntry *const volatile *title_menu = nullptr; // cTitle + 0x68: [0] the first entry, [1] one past the last
     void (*swapchain_swap)(void *swapchain, unsigned sync) = nullptr;
     void *const *display_buffer = nullptr; // the game's slot for the Texture2D that wraps the swap chain's back buffer; read it every frame
     ID3D11RenderTargetView *(*texture_rtv)(const void *texture) = nullptr;

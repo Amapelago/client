@@ -5,7 +5,7 @@
 namespace game
 {
 
-// True once the title screen is up: the attract movie or any later title state, in the title room.
+// True while the title is at its attract movie, press start or menu (major states 3 to 5, in the title room).
 bool title_shown(const Addresses &game);
 
 // Main thread. True while the player is in free play: no cutscene, script or shop holds control. It stays true with the pause menu open.

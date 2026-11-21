@@ -43,6 +43,9 @@ constexpr std::int32_t kOk = 1, kFail = 2;
 
 constexpr std::uint16_t kTitleRoom = 0x0C00, kPresentsRoom = 0x0C02;
 
+// The title's major state while its menu is up (cTitle + 0x14, low byte).
+constexpr std::uint32_t kTitleMenuState = 5;
+
 // RemoteStorageFileReadAsyncComplete_t and RemoteStorageFileWriteAsyncComplete_t, the results Steam passes to a call result's Run.
 struct ReadComplete
 {
@@ -282,6 +285,14 @@ std::string saves_bind(const ap::Seed &seed)
     return {};
 }
 
+TitleBlock title_block()
+{
+    if (!ap::seed())
+        return TitleBlock::NoSeed;
+    std::lock_guard lock(g_mutex);
+    return g_has_record ? TitleBlock::HasSave : TitleBlock::NoSave;
+}
+
 void saves_frame()
 {
     // Arriving at the title disarms. Leaving it for anything but Presents while a seed is bound arms with nothing due, after New Game as after Continue.
@@ -296,6 +307,20 @@ void saves_frame()
         else
             g_due = g_due || g_armed;
         g_room = room;
+    }
+    // At the title menu (major state 5) every entry's action gets bit 8 set when its row is blocked, which keeps the confirm dispatch at 0x180600433 from
+    // matching it: that dispatch reads the cursor's entry as a 32-bit action and acts only on 0 to 4 (inferred), so a blocked row plays the confirm cue and
+    // does nothing. The labels come from the row widgets, so they don't change. TitleMenu_BuildEntries rebuilds the vector each time the menu opens, so
+    // this runs every frame.
+    if (room == kTitleRoom && (*g_game.title_state & 0xFF) == kTitleMenuState)
+    {
+        const TitleBlock block = title_block();
+        for (TitleMenuEntry *entry = g_game.title_menu[0]; entry != g_game.title_menu[1]; ++entry)
+        {
+            const std::int32_t action = entry->action & 0xff;
+            const bool blocked = block == TitleBlock::NoSeed ? action <= 1 : action == (block == TitleBlock::HasSave ? 0 : 1);
+            entry->action = blocked ? action | 0x100 : action;
+        }
     }
     if (!g_armed || !g_due || !ap::seed() || !save_safe(g_game))
         return;

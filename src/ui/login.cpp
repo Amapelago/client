@@ -7,6 +7,7 @@
 #include "ap/seed.hpp"
 #include "ap/session.hpp"
 #include "client.hpp"
+#include "game/saves.hpp"
 #include "ui/overlay.hpp"
 #include "version.hpp"
 
@@ -65,6 +66,8 @@ void draw_status()
     {
         text += "off: no data folder";
     }
+    if (const std::string problem = game::save_problem(); !problem.empty())
+        text += "\nAP save not written: " + problem;
 
     // A dark backing keeps the text readable over a bright frame.
     const float pad = ImGui::GetFontSize() * 0.5f;
@@ -113,6 +116,18 @@ void draw_login(bool focused)
         session.disconnect();
     }
     ImGui::TextWrapped("%s", status_text(session).c_str());
+    switch (game::title_block())
+    {
+    case game::TitleBlock::NoSeed:
+        ImGui::TextWrapped("New Game and Continue are blocked: connect first.");
+        break;
+    case game::TitleBlock::HasSave:
+        ImGui::TextWrapped("New Game is blocked: this seed has a save, use Continue.");
+        break;
+    case game::TitleBlock::NoSave:
+        ImGui::TextWrapped("Continue is blocked: this seed has no save yet, use New Game.");
+        break;
+    }
     ImGui::End();
 }
 
