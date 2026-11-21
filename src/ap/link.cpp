@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "ap/slot_data.hpp"
+#include "support/crash.hpp"
 #include "support/log.hpp"
 
 namespace ap
@@ -140,6 +141,7 @@ std::vector<Event> Link::drain()
 
 void Link::run()
 {
+    support::crash_watch_thread();
     support::log(support::Level::Info, "net thread started");
     while (running_)
     {

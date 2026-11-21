@@ -8,6 +8,7 @@
 #include "boot/fingerprint.hpp"
 #include "client.hpp"
 #include "game/addresses.hpp"
+#include "support/crash.hpp"
 #include "support/log.hpp"
 #include "support/paths.hpp"
 #include "version.hpp"
@@ -99,6 +100,10 @@ bool startup_detour(bool warm)
     if (!booted)
     {
         booted = true;
+        if (const auto dir = support::data_dir(); !dir.empty())
+        {
+            support::crash_start(dir / "crashes");
+        }
         log(Level::Info, "cold start on thread %lu", GetCurrentThreadId());
         const game::Addresses game = game::resolve(g_main_base);
         if (queue_hook("flower_tick", reinterpret_cast<void *>(game.flower_tick), reinterpret_cast<void *>(&tick_detour),
@@ -108,6 +113,10 @@ bool startup_detour(bool warm)
             log(Level::Info, "flower_tick hooked");
         }
         client::cold_start(game);
+        // Anything flower_startup sets as the unhandled-exception filter displaces the client's, so the client's goes back afterwards.
+        const bool result = g_startup_next(warm);
+        support::crash_reassert();
+        return result;
     }
     return g_startup_next(warm);
 }
