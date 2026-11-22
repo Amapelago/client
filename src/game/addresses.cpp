@@ -75,6 +75,23 @@ Addresses resolve(uintptr_t main_base, uintptr_t kernel_base)
     a.serialize_save_record = at<void (*)(void *)>(main_base, 0x1801c3870);
     // main.dll's Steam context data. SteamInternal_ContextInit on it returns the context, which holds the ISteamRemoteStorage pointer at +0x48 (confirmed).
     a.steam_context_init_data = at<void *>(main_base, 0x180792cb0);
+    // g_ItemMgrPtr holds the item manager's address, which Item_Add takes and never dereferences (inferred).
+    a.item_mgr = at<void *const volatile *>(main_base, 0x1807ab210);
+    // Item_Add adds delta to count[id] and clamps it to the item param table's maxCount (confirmed).
+    a.item_add = at<void (*)(void *, int, int)>(main_base, 0x1804965d0);
+    // The inventory's u16 counts, 256 of them, by item id (confirmed).
+    a.item_counts = at<volatile uint16_t *>(main_base, 0x180b20630);
+    // PlayerStat_SetAstralPouchMax stores the pouch capacity (inferred) and AstralPouch_GetMax reads it (confirmed).
+    a.set_astral_pouch_max = at<void (*)(uint16_t)>(main_base, 0x18043b550);
+    a.astral_pouch_max = at<int16_t (*)()>(main_base, 0x18043aa40);
+    // The FudeSys singleton, which holds the brush techniques (confirmed).
+    a.fude = at<uint8_t *>(main_base, 0x1808909c0);
+    // FudeSys_UpdateTechniqueBit changes the enabled and acquired bits of one technique (confirmed).
+    a.update_technique_bit = at<void (*)(void *, uint32_t, int)>(main_base, 0x18017c270);
+    // FudeSys_SetTechniqueLevel writes one level byte (inferred).
+    a.set_technique_level = at<void (*)(void *, int, uint8_t)>(main_base, 0x180170ef0);
+    // The Cherry Bomb refresh rederives the bomb count from the technique's level (inferred).
+    a.refresh_cherry_bomb_count = at<void (*)(void *)>(main_base, 0x1801708c0);
     return a;
 }
 

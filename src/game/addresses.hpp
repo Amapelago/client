@@ -47,6 +47,16 @@ struct Addresses
     uint8_t *cached_save_record = nullptr; // one OKAMI slot record
     void (*serialize_save_record)(void *ctx) = nullptr;
     void *steam_context_init_data = nullptr;
+    void *const volatile *item_mgr = nullptr;                 // holds the item manager's address, which Item_Add takes and never dereferences
+    void (*item_add)(void *mgr, int id, int delta) = nullptr; // clamps the count to the item's maxCount
+    volatile uint16_t *item_counts = nullptr;                 // count[256], by item id
+    void (*set_astral_pouch_max)(uint16_t capacity) = nullptr;
+    int16_t (*astral_pouch_max)() = nullptr;
+    uint8_t *fude = nullptr; // FudeSys: enabled u64 +0x70, acquired u64 +0x78, level u8[64] +0x80, saved enabled u64 +0xc0, saved level u8[64] +0xc8
+    // op 0 sets enabled and acquired, 1 clears enabled, 2 clears both, 3 clears acquired
+    void (*update_technique_bit)(void *fude, uint32_t bit, int op) = nullptr;
+    void (*set_technique_level)(void *fude, int bit, uint8_t level) = nullptr; // writes only the level byte
+    void (*refresh_cherry_bomb_count)(void *fude) = nullptr;                   // derives the bomb count from the Cherry Bomb level
     void *(*steam_context_init)(void *init_data) = nullptr; // steam_api64's SteamInternal_ContextInit; boot fills it, since resolve sees only main.dll
 };
 
