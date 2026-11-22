@@ -1,3 +1,9 @@
+// Copyright (c) 2026 Axertin
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 #pragma once
 
 // The Archipelago net stack's configuration: apclientpp on wswrap on websocketpp on standalone asio, with C++11 threads and no Boost. apclientpp

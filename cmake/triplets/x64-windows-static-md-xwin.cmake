@@ -1,3 +1,9 @@
+# Copyright (c) 2026 Axertin
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 # x64 MSVC-ABI static libraries with the dynamic release CRT, built on Linux with clang-cl + xwin.
 set(VCPKG_TARGET_ARCHITECTURE x64)
 set(VCPKG_CRT_LINKAGE dynamic)

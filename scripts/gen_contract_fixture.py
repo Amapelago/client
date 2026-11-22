@@ -1,3 +1,9 @@
+# Copyright (c) 2026 Axertin
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 """Writes tests/fixtures/contract.json from the Okami HD apworld.
 
 Rerun it whenever the world's main branch moves. Usage, from a Python 3.12 environment with the Archipelago

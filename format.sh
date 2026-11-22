@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Axertin
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 #
 # Format all tracked C/C++ sources with clang-format. With no arguments it formats in place; arguments go straight to clang-format
 # (for example: bash format.sh --dry-run --Werror). git ls-files leaves out build/ (untracked).

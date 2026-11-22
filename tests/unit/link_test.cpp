@@ -1,3 +1,9 @@
+// Copyright (c) 2026 Axertin
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // The link against a scripted Archipelago server over loopback. Each race runs the link's net thread against this thread and the server's io thread.
 #include "ap/net.hpp"
 

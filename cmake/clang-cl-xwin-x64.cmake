@@ -1,3 +1,9 @@
+# Copyright (c) 2026 Axertin
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 # Cross toolchain for x64 MSVC-ABI Windows binaries on Linux: clang-cl with an xwin-splatted CRT
 # and Windows SDK. The sysroot comes from the XWIN_SDK env var or -DXWIN_SDK=<dir>.
 

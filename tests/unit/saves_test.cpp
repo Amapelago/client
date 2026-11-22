@@ -1,3 +1,9 @@
+// Copyright (c) 2026 Axertin
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // The save redirect and the autosave against fake game memory and a fake Steam remote storage. The test thread that runs saves_frame plays the game's
 // main thread, and the others play the hx::SaveDataManager worker that calls Steam.
 #include <algorithm>

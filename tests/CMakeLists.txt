@@ -1,3 +1,9 @@
+# Copyright (c) 2026 Axertin
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 include(FetchContent)
 FetchContent_Declare(Catch2 GIT_REPOSITORY https://github.com/catchorg/Catch2.git GIT_TAG v3.5.4 GIT_SHALLOW TRUE SYSTEM)
 FetchContent_MakeAvailable(Catch2)

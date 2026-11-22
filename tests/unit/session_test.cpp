@@ -1,3 +1,9 @@
+// Copyright (c) 2026 Axertin
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // The session over a real link to a scripted Archipelago server on loopback. This thread plays the game's main thread and ticks the session.
 #include "ap/net.hpp"
 

@@ -1,3 +1,9 @@
+// Copyright (c) 2026 Axertin
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // The AP save in memory: the game's save files served from it while a seed is bound, the autosave that writes the live game into it, and the title menu
 // rows it blocks.
 #pragma once
