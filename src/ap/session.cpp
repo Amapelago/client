@@ -130,6 +130,11 @@ std::vector<std::string> Session::take_prints()
     return std::exchange(prints_, {});
 }
 
+void Session::print(std::string text)
+{
+    prints_.push_back(std::move(text));
+}
+
 const Status &Session::status() const
 {
     return status_;

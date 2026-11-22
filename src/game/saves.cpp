@@ -291,6 +291,11 @@ std::string saves_bind(const ap::Seed &seed)
     return {};
 }
 
+bool in_seed_game()
+{
+    return g_armed;
+}
+
 TitleBlock title_block()
 {
     if (!ap::seed())

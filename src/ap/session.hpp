@@ -63,6 +63,8 @@ class Session
     Login saved_login() const;
     // The print messages that arrived since the last call, oldest first.
     std::vector<std::string> take_prints();
+    // Main thread. Queues a line for the next take_prints.
+    void print(std::string text);
 
   private:
     void on(Connecting &);

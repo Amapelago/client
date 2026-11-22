@@ -32,6 +32,10 @@ std::string saves_bind(const ap::Seed &seed);
 // room arrival has made a save due.
 void saves_frame();
 
+// Main thread. True from the arrival that leaves the title for any room but the Presents gallery while a seed is bound, until the next arrival at the
+// title. This is the state in which the autosave is armed.
+bool in_seed_game();
+
 // What the title does with New Game and Continue. NoSeed blocks both, HasSave blocks New Game and NoSave blocks Continue.
 enum class TitleBlock
 {

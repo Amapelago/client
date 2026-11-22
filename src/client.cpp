@@ -7,8 +7,10 @@
 #include "client.hpp"
 
 #include <filesystem>
+#include <string>
 
 #include "ap/session.hpp"
+#include "game/grant.hpp"
 #include "game/play_state.hpp"
 #include "game/saves.hpp"
 #include "support/log.hpp"
@@ -41,6 +43,9 @@ void frame()
     if (g_session)
         g_session->tick();
     game::saves_frame();
+    if (g_session && ap::seed() && game::in_seed_game() && game::save_safe(g_game))
+        for (const std::int64_t id : game::grant_received(g_game, g_session->received()))
+            g_session->print("unknown item id " + std::to_string(id) + ", skipped");
     if (!g_title_logged && game::title_shown(g_game))
     {
         g_title_logged = true;
