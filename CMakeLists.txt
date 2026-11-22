@@ -121,5 +121,11 @@ target_link_libraries(dinput8 PRIVATE apclient_core minhook imgui dxguid)
 target_link_options(dinput8 PRIVATE /DEBUG $<$<CONFIG:Release>:/OPT:REF /OPT:ICF>)
 apclient_warnings(dinput8)
 
+# The licence and third-party notices ship beside the DLL, and building dinput8 stages them.
+include(cmake/Notices.cmake)
+stage_notices("${CMAKE_RUNTIME_OUTPUT_DIRECTORY}" notice_files)
+add_custom_target(notices DEPENDS ${notice_files})
+add_dependencies(dinput8 notices)
+
 enable_testing()
 add_subdirectory(tests)
