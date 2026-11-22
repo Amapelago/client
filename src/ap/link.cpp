@@ -287,12 +287,18 @@ void Link::open(const std::string &server, const std::string &slot, const std::s
     client_->set_print_json_handler(
         [this](const APClient::PrintJSONArgs &args)
         {
-            if (!args.item)
-                return;
-            const int me = client_->get_player_number();
-            // The receiving slot is the one the item goes to. The item's player is the slot that owns its location, which covers this slot's own
-            // finds and hints about its world.
-            if ((!args.receiving || *args.receiving != me) && args.item->player != me)
+            // Item messages show only for this slot: the receiving slot is the one the item goes to, and the item's player is the slot that owns its
+            // location, which covers this slot's own finds and hints about its world. Server announcements show for everyone: the plain notices
+            // (empty type), chat from the server, countdowns, goals, releases and collects. Join, Part and Chat arrive in a constant stream in a big
+            // multiworld, and command results answer other clients.
+            if (args.item)
+            {
+                const int me = client_->get_player_number();
+                if ((!args.receiving || *args.receiving != me) && args.item->player != me)
+                    return;
+            }
+            else if (!args.type.empty() && args.type != "ServerChat" && args.type != "Countdown" && args.type != "Goal" && args.type != "Release" &&
+                     args.type != "Collect")
                 return;
             // An exception that reached apclientpp would drop the rest of the packet, which can hold items.
             try
